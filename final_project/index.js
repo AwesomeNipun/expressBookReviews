@@ -18,46 +18,25 @@ app.use(
 );
 
 app.use("/customer/auth/*", function auth(req, res, next) {
-  const username = req.body.username;
-  const password = req.body.password;
 
-  if (!username || !password) {
-    return res.status(404).json({ message: "Error loggin in" });
-  }
+    if (req.session.authorization) {
 
-  if (isAuthenticatedUser(username, password)) {
-    let accessToken = jwt.sign(
-      {
-        data: password,
-      },
-      "access",
-      { expiresIn: 60 * 60 }
-    );
-
-    req.session.authorization = {
-      accessToken,
-      username,
-    };
-
-    return res.status(200).send("User successfully logged in");
-  } else {
-    return res
-      .status(208)
-      .json({ message: "Invalid Login. Check username and password" });
-  }
+        let token = req.session.authorization['accessToken']; // Access Token
+        
+        // Verify JWT token for user authentication
+        jwt.verify(token, "access", (err, user) => {
+            if (!err) {
+                req.user = user; // Set authenticated user data on the request object
+                next(); // Proceed to the next middleware
+            } else {
+                return res.status(403).json({ message: "User not authenticated" }); // Return error if token verification fails
+            }
+        });
+    
+    } else {
+        return res.status(403).json({ message: "User not logged in" });
+    }
 });
-
-const isAuthenticatedUser = (username, password) => {
-  let valid_users = users.filter((user) => {
-    return user.username === username && user.password === password;
-  });
-
-  if (valid_users.length > 0) {
-    return true;
-  }
-
-  return false;
-};
 
 const PORT = 5000;
 
